@@ -1,4 +1,14 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9, !=3.9.0, !=3.9.1"
+# dependencies = [
+#     "cryptography>=50.0.2",
+#     "pyopenssl>=26.4.0",
+# ]
+#
+# [tool.uv]
+# exclude-newer = "2026-11-24T00:00:00Z"
+# ///
 """
 F5 BIG-IP Backend Pool Member TLS Certificate Chain Auditor
 Scans bigip.conf, connects to backend members, and flags any pool members
@@ -285,7 +295,8 @@ class CertChainValidator:
 
         if not PYOPENSSL_AVAILABLE and not CRYPTOGRAPHY_AVAILABLE:
             raise RuntimeError(
-                "pyOpenSSL or cryptography is required. Install with: pip install pyOpenSSL cryptography"
+                "pyOpenSSL or cryptography is required. Run with `uv run big-ip-pool-member-p512-cert.py` "
+                "or install with: pip install pyOpenSSL cryptography"
             )
 
         raise RuntimeError(" | ".join(errors) if errors else "Connection failed")
@@ -492,7 +503,8 @@ def main():
         print(f"[!] Error reading file '{args.file}': {e}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"[*] Parsing BIG-IP configuration: {args.file}...")
+    if not args.json:
+        print(f"[*] Parsing BIG-IP configuration: {args.file}...")
     config_parser = BigIPConfigParser(content)
     pools = config_parser.extract_pools()
 
@@ -502,17 +514,22 @@ def main():
         for m in members:
             unique_endpoints.add(m)
 
-    print(f"[*] Identified {total_pools} pools with {len(unique_endpoints)} unique backend endpoints.")
+    if not args.json:
+        print(f"[*] Identified {total_pools} pools with {len(unique_endpoints)} unique backend endpoints.")
 
     if not unique_endpoints:
-        print("[!] No pool members found. Exiting.")
+        if args.json:
+            print("[]")
+        else:
+            print("[!] No pool members found. Exiting.")
         sys.exit(0)
 
     # Perform concurrent TLS auditing
     validator = CertChainValidator(timeout=args.timeout, sni_hostname=args.sni, verbose=args.verbose)
     endpoint_results: Dict[Tuple[str, int], Dict] = {}
 
-    print(f"[*] Auditing TLS endpoints with {args.workers} threads (P-521 curve negotiation enabled)...")
+    if not args.json:
+        print(f"[*] Auditing TLS endpoints with {args.workers} threads (P-521 curve negotiation enabled)...")
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor:
         future_map = {
             executor.submit(validator.audit_endpoint, host, port): (host, port)
@@ -525,14 +542,17 @@ def main():
             except Exception as e:
                 endpoint_results[ep] = {
                     "host": ep[0],
-                    "port": ep,
+                    "port": ep[1],
                     "connected": False,
                     "flagged": False,
                     "has_p521_leaf": False,
                     "has_p521_ca": False,
                     "is_self_signed": False,
+                    "p521_leaf": None,
+                    "p521_cas": [],
                     "inspected_certs": [],
                     "error": str(e),
+                    "chain_length": 0,
                 }
 
     # Aggregate by pool

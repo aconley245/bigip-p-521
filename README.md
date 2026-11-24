@@ -1,6 +1,6 @@
 # F5 BIG-IP Pool Member P-521 Certificate Auditor
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![F5 TMOS](https://img.shields.io/badge/TMOS-v13%20--%20v17%2B-red.svg)](https://www.f5.com/)
 [![OpenSSL](https://img.shields.io/badge/Cryptography-pyOpenSSL%20%2B%20cryptography-orange.svg)](https://github.com/pyca/cryptography)
@@ -75,14 +75,38 @@ This tool proactively uncovers these vulnerabilities across entire fleets of bac
 
 ### Requirements
 
-- Python 3.8+
+- Python 3.9+ (excluding 3.9.0 / 3.9.1)
 - OpenSSL 1.1.1 or 3.0+
+- [`uv`](https://docs.astral.sh/uv/) (recommended for zero-setup execution using PEP 723 inline script metadata)
 
-### Dependencies
+### Running with `uv` (Recommended)
 
-Install the required Python cryptographic modules:
+`big-ip-pool-member-p512-cert.py` embeds [PEP 723](https://peps.python.org/pep-0723/) inline script metadata (with `[tool.uv]` settings), so `uv` provisions the Python environment and dependencies (`cryptography`, `pyOpenSSL`) automatically:
 
 ```bash
+uv run big-ip-pool-member-p512-cert.py -f /path/to/bigip.conf
+```
+
+Or execute it directly via the `#!/usr/bin/env -S uv run --script` shebang:
+
+```bash
+./big-ip-pool-member-p512-cert.py -f /path/to/bigip.conf
+```
+
+You can also inspect or lock the inline script dependencies with `uv`:
+
+```bash
+uv tree --script big-ip-pool-member-p512-cert.py
+uv lock --script big-ip-pool-member-p512-cert.py
+```
+
+### Manual Installation (`pip`)
+
+If you prefer running with a standard Python environment, install the required cryptographic modules:
+
+```bash
+pip install -r requirements.txt
+# or:
 pip install pyOpenSSL cryptography
 ```
 
@@ -95,7 +119,9 @@ pip install pyOpenSSL cryptography
 Run an audit against a local `bigip.conf` file:
 
 ```bash
-python3 check_p521_pool_certs.py -f /path/to/bigip.conf
+uv run big-ip-pool-member-p512-cert.py -f /path/to/bigip.conf
+# or with a pre-configured environment:
+python3 big-ip-pool-member-p512-cert.py -f /path/to/bigip.conf
 ```
 
 ### Advanced Scan with SNI & Verbose Diagnostics
@@ -103,7 +129,7 @@ python3 check_p521_pool_certs.py -f /path/to/bigip.conf
 When pool members are listening behind an NGINX virtual host or require explicit Server Name Indication:
 
 ```bash
-python3 check_p521_pool_certs.py -f bigip.conf --sni api.corp.internal -v -t 5.0 -w 20
+uv run big-ip-pool-member-p512-cert.py -f bigip.conf --sni api.corp.internal -v -t 5.0 -w 20
 ```
 
 ### JSON Export for CI/CD & Automation
@@ -111,7 +137,7 @@ python3 check_p521_pool_certs.py -f bigip.conf --sni api.corp.internal -v -t 5.0
 Export detailed findings for ingestion into SIEM or compliance dashboards:
 
 ```bash
-python3 check_p521_pool_certs.py -f bigip.conf --json > p521_audit_report.json
+uv run big-ip-pool-member-p512-cert.py -f bigip.conf --json > p521_audit_report.json
 ```
 
 ---
@@ -217,7 +243,7 @@ If an NGINX backend server using a P-521 certificate reports a handshake failure
 1. **Virtual Host & SNI Routing**:
    If NGINX has `ssl_reject_handshake on;` or name-based `server_name` blocks, connecting by raw IP triggers an immediate rejection. Use `--sni`:
    ```bash
-   python3 check_p521_pool_certs.py -f bigip.conf --sni myapp.example.com -v
+   uv run big-ip-pool-member-p512-cert.py -f bigip.conf --sni myapp.example.com -v
    ```
 
 2. **Verify NGINX Curve Support**:
