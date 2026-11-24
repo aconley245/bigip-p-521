@@ -196,31 +196,7 @@ Pool: /Common/p_legacy_portal [OK]
 
 ---
 
-## F5 BIG-IP Remediation & Configuration
 
-If this auditor detects pool members relying on P-521 certificate chains, review the following remediation paths:
-
-### 1. Enable P-521 Curve Negotiation on ServerSSL Profiles
-
-By default, some TMOS versions restrict allowed elliptic curves. If you cannot immediately re-issue backend certificates, add `secp521r1` to the associated ServerSSL profile via `tmsh`:
-
-```bash
-# Add secp521r1 curve to the ServerSSL profile
-tmsh modify ltm profile server-ssl custom_serverssl_profile curves add { secp521r1 }
-
-# Save system configuration
-tmsh save sys config
-```
-
-> **Warning:** Adding 521-bit curve support may force BIG-IP CPU cores into software crypto processing for those SSL flows, increasing TMM CPU utilization during high-throughput peaks.
-
-### 2. Intermediate CA Re-Issuance (Recommended)
-
-For optimal performance and compatibility with hardware cryptographic acceleration cards:
-- Re-issue intermediate and server certificates using **ECDSA P-256 (`secp256r1`)** or **P-384 (`secp384r1`)**.
-- Alternatively, utilize standard **RSA 2048-bit** or **RSA 4096-bit** keys.
-
----
 
 ## Contributing
 
